@@ -1,0 +1,76 @@
+syntax = "proto3";
+package monsoon;
+
+service MonsoonService {
+  rpc join(Heartbeat) returns (ConnectionResponse) {}
+  rpc host(HostRequest) returns (HostResponse) {}
+  rpc heartbeat(Heartbeat) returns (Storm) {}
+  rpc getPlayers(Heartbeat) returns (PlayersResponse) {}
+
+  // debug
+  rpc ping(PingRequest) returns (PongResponse) {}
+}
+
+// c2s
+message HostRequest {
+  string lobby = 1; // lobby name
+  float latitude = 2;
+  float longitude = 3;
+  float size = 4;
+  float speed = 5;
+  string name = 6; // host name
+}
+
+// s2c
+message HostResponse {
+  bool success = 1;
+  string code = 2;
+}
+
+
+// s2c
+message ConnectionResponse {
+  bool success = 1;
+}
+
+// c2s
+// player is disconnected after 5 seconds without a pulse
+message Heartbeat {
+  string code = 1;
+  string name = 2;
+  float latitude = 3;
+  float longitude = 4;
+  int32 gamemode = 5;
+}
+
+// s2c
+message Storm {
+  int32 state = 1; // not started, started, over for you, over in general, error
+  float size = 2;
+  float speed = 3;
+  float latitude = 4;
+  float longitude = 5;
+}
+
+// s2c
+message PlayersResponse {
+  repeated Player players = 1;
+}
+
+message Player {
+  string name = 1;
+  float latitude = 2;
+  float longitude = 3;
+  int32 state = 4; // hidden, out
+  int32 gamemode = 5; // host, guest, (spectator?)
+}
+
+// c2s debug
+message PingRequest {
+  string content = 1;
+}
+
+// s2c debug
+message PongResponse {
+  string content = 1;
+}
