@@ -1,8 +1,9 @@
 use std::fmt::format;
 use std::time::{SystemTime, UNIX_EPOCH};
+use rand::Rng;
 use futures::{SinkExt, StreamExt};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
-use monsoon::{PingRequest, PongResponse, Heartbeat, Storm, ConnectionResponse, HostRequest, HostResponse, StartRequest, StartResponse, PlayersResponse, Player};
+use monsoon::{PingRequest, PongResponse, Heartbeat, Storm, ConnectionResponse, HostRequest, HostResponse, StartRequest, StartResponse, PlayersResponse};
 use monsoon::monsoon_service_server::MonsoonService;
 use crate::{Game, GAMES};
 use crate::models::location::Location;
@@ -28,8 +29,8 @@ impl MonsoonService for Monsoon {
         println!("_join");
         // todo: maybe wanna validate this stuff too
         let mut map = GAMES.write().unwrap();
-        if map.contains_key(request.into_inner().code) {
-            if let Some(game) = map.get_mut(code) {
+        if map.contains_key(&request.into_inner().code) {
+            if let Some(game) = map.get_mut(&request.into_inner().code) {
                 game.add_player(Player::new(
                     request.into_inner().name,
                     Location::new(request.into_inner().latitude, request.into_inner().longitude),
@@ -51,7 +52,25 @@ impl MonsoonService for Monsoon {
         println!("_host");
         // todo: everything the client gives us here needs to be validated but we can do that later ;)
         let mut map = GAMES.write().unwrap();
-        let code = Game::generate_lobby_code(map.keys().map(|key| *key).collect());
+        let mut rng = rand::thread_rng();
+
+        // generate lobby code
+        let mut code = "MTSGA".to_string(); // MSTGA! easter egg 25% chance
+        if map.contains_key(&code) || !(rng.gen_range(0..4) == 0) {
+            code = "".to_string();
+            let letters = "BCDFGHJKLMNPQRSTVWXYZ";
+            loop {
+                for _ in 0..5 {
+                    let idx = rng.gen_range(0..letters.len());
+                    code.push(letters.chars().nth(idx).unwrap());
+                }
+                if !map.contains_key(&code) {
+                    break;
+                }
+                code.clear();
+            }
+        }
+
         let location = Location::new(request.into_inner().latitude, request.into_inner().longitude);
         map.insert(code, Game::new(
             code.clone(),
@@ -80,10 +99,8 @@ impl MonsoonService for Monsoon {
         println!("_start");
         // todo: hi
         let mut map = GAMES.write().unwrap();
-        if map.contains_key(request.into_inner().code) {
-            if let Some(game) = map.get_mut(code) {
-                game.start()
-            }
+        if let Some(game) = map.get_mut(&request.into_inner().code) {
+            game.start();
             Ok(Response::new(StartResponse {
                 success: true,
             }))
@@ -96,13 +113,24 @@ impl MonsoonService for Monsoon {
 
     async fn heartbeat(&self, request:Request<Heartbeat>) -> Result<Response<Storm>, Status> {
         println!("_heartbeat");
-        Ok(Response::new(Storm {
-            state: 0,
-            size: 300.0,
-            speed: 30.0,
-            latitude: 40.070531,
-            longitude: -75.450966,
-        }))
+        let mut map = GAMES.write().unwrap();
+        if let Some(game) = map.get_mut(&request.into_inner().code) {
+            Ok(Response::new(Storm {
+                state: game.phase as i32,
+                size: game.size,
+                speed: game.speed,
+                latitude: game.center.latitude,
+                longitude: game.center.longitude,
+            }))
+        } else {
+            Ok(Response::new(Storm {
+                state: 3,
+                size: 0.0,
+                speed: 0.0,
+                latitude: 0.0,
+                longitude: 0.0,
+            }))
+        }
     }
 
     async fn get_players(&self, request:Request<Heartbeat>) -> Result<Response<PlayersResponse>, Status> {
