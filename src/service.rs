@@ -29,11 +29,12 @@ impl MonsoonService for Monsoon {
         println!("_join");
         // todo: maybe wanna validate this stuff too
         let mut map = GAMES.write().unwrap();
-        if map.contains_key(&request.into_inner().code) {
-            if let Some(game) = map.get_mut(&request.into_inner().code) {
+        let r = &request.into_inner();
+        if map.contains_key(&r.code) {
+            if let Some(game) = map.get_mut(&r.code) {
                 game.add_player(Player::new(
-                    request.into_inner().name,
-                    Location::new(request.into_inner().latitude, request.into_inner().longitude),
+                    r.name.to_string(),
+                    Location::new(r.latitude, r.longitude),
                     0, // hidden
                     0, // hider
                 ))
@@ -53,6 +54,7 @@ impl MonsoonService for Monsoon {
         // todo: everything the client gives us here needs to be validated but we can do that later ;)
         let mut map = GAMES.write().unwrap();
         let mut rng = rand::thread_rng();
+        let r = &request.into_inner();
 
         // generate lobby code
         let mut code = "MTSGA".to_string(); // MSTGA! easter egg 25% chance
@@ -71,19 +73,19 @@ impl MonsoonService for Monsoon {
             }
         }
 
-        let location = Location::new(request.into_inner().latitude, request.into_inner().longitude);
-        map.insert(code, Game::new(
+        let location = Location::new(r.latitude, r.longitude);
+        map.insert(code.clone(), Game::new(
             code.clone(),
-            request.into_inner().lobby, // validate later
-            location,
-            request.into_inner().size, // validate later
-            request.into_inner().speed, // validate later
+            r.lobby.to_string(), // validate later
+            location.clone(),
+            r.size, // validate later
+            r.speed, // validate later
             0,
             0,
             vec![
                 Player::new(
-                    request.into_inner().name, // validate later
-                    location.clone(),
+                    r.name.to_string(), // validate later
+                    location,
                     1, // out
                     1, // hunter
                 )
@@ -91,7 +93,7 @@ impl MonsoonService for Monsoon {
         ));
         Ok(Response::new(HostResponse {
             success: true,
-            code: code.clone(),
+            code,
         }))
     }
 
