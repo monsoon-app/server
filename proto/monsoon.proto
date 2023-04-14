@@ -4,6 +4,7 @@ package monsoon;
 service MonsoonService {
   rpc join(Heartbeat) returns (ConnectionResponse) {}
   rpc host(HostRequest) returns (HostResponse) {}
+  rpc start(StartRequest) returns (StartResponse) {}
   rpc heartbeat(Heartbeat) returns (Storm) {}
   rpc getPlayers(Heartbeat) returns (PlayersResponse) {}
 
@@ -43,6 +44,16 @@ message Heartbeat {
   int32 gamemode = 5;
 }
 
+// c2s
+message StartRequest {
+  string code = 1;
+}
+
+// s2c
+message StartResponse {
+  bool success = 1;
+}
+
 // s2c
 message Storm {
   int32 state = 1; // not started, started, over for you, over in general, error
@@ -62,7 +73,7 @@ message Player {
   float latitude = 2;
   float longitude = 3;
   int32 state = 4; // hidden, out
-  int32 gamemode = 5; // host, guest, (spectator?)
+  int32 gamemode = 5; // guest, host, (spectator?)
 }
 
 // c2s debug

@@ -1,8 +1,12 @@
 use std::fmt::format;
+use std::time::{SystemTime, UNIX_EPOCH};
 use futures::{SinkExt, StreamExt};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
-use monsoon::{PingRequest, PongResponse, Heartbeat, Storm, ConnectionResponse, HostRequest, HostResponse, PlayersResponse, Player};
+use monsoon::{PingRequest, PongResponse, Heartbeat, Storm, ConnectionResponse, HostRequest, HostResponse, StartRequest, StartResponse, PlayersResponse, Player};
 use monsoon::monsoon_service_server::MonsoonService;
+use crate::{Game, GAMES};
+use crate::models::location::Location;
+use crate::models::player::Player;
 
 pub mod monsoon {
     tonic::include_proto!("monsoon");
@@ -22,17 +26,72 @@ impl MonsoonService for Monsoon {
 
     async fn join(&self, request:Request<Heartbeat>) -> Result<Response<ConnectionResponse>, Status> {
         println!("_join");
-        Ok(Response::new(ConnectionResponse {
-            success: false,
-        }))
+        // todo: maybe wanna validate this stuff too
+        let mut map = GAMES.write().unwrap();
+        if map.contains_key(request.into_inner().code) {
+            if let Some(game) = map.get_mut(code) {
+                game.add_player(Player::new(
+                    request.into_inner().name,
+                    Location::new(request.into_inner().latitude, request.into_inner().longitude),
+                    0, // hidden
+                    0, // hider
+                ))
+            }
+            Ok(Response::new(ConnectionResponse {
+                success: true,
+            }))
+        } else {
+            Ok(Response::new(ConnectionResponse {
+                success: false,
+            }))
+        }
     }
 
     async fn host(&self, request:Request<HostRequest>) -> Result<Response<HostResponse>, Status> {
         println!("_host");
+        // todo: everything the client gives us here needs to be validated but we can do that later ;)
+        let mut map = GAMES.write().unwrap();
+        let code = Game::generate_lobby_code(map.keys().map(|key| *key).collect());
+        let location = Location::new(request.into_inner().latitude, request.into_inner().longitude);
+        map.insert(code, Game::new(
+            code.clone(),
+            request.into_inner().lobby, // validate later
+            location,
+            request.into_inner().size, // validate later
+            request.into_inner().speed, // validate later
+            0,
+            0,
+            vec![
+                Player::new(
+                    request.into_inner().name, // validate later
+                    location.clone(),
+                    1, // out
+                    1, // hunter
+                )
+            ]
+        ));
         Ok(Response::new(HostResponse {
-            success: false,
-            code: "MTSGA".to_string(),
+            success: true,
+            code: code.clone(),
         }))
+    }
+
+    async fn start(&self, request:Request<StartRequest>) -> Result<Response<StartResponse>, Status> {
+        println!("_start");
+        // todo: hi
+        let mut map = GAMES.write().unwrap();
+        if map.contains_key(request.into_inner().code) {
+            if let Some(game) = map.get_mut(code) {
+                game.start()
+            }
+            Ok(Response::new(StartResponse {
+                success: true,
+            }))
+        } else {
+            Ok(Response::new(StartResponse {
+                success: false,
+            }))
+        }
     }
 
     async fn heartbeat(&self, request:Request<Heartbeat>) -> Result<Response<Storm>, Status> {
