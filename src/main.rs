@@ -1,7 +1,8 @@
 use std::fmt::format;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::thread;
 use lazy_static::lazy_static;
 use futures::{SinkExt, StreamExt};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
@@ -24,9 +25,6 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    let games:Vec<Game>; // idk what to do about this, maybe like one global server thingy that service.rs can read/write to??
-
     let address = "0.0.0.0:55443".parse().unwrap();
     let service = Monsoon::default();
     println!("Server listening on {}", address);

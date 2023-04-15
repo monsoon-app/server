@@ -1,4 +1,5 @@
 use std::fmt::format;
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rand::Rng;
 use futures::{SinkExt, StreamExt};
@@ -30,15 +31,13 @@ impl MonsoonService for Monsoon {
         // todo: maybe wanna validate this stuff too
         let mut map = GAMES.write().unwrap();
         let r = &request.into_inner();
-        if map.contains_key(&r.code) {
-            if let Some(game) = map.get_mut(&r.code) {
-                game.add_player(Player::new(
-                    r.name.to_string(),
-                    Location::new(r.latitude, r.longitude),
-                    0, // hidden
-                    0, // hider
-                ))
-            }
+        if let Some(game) = map.get_mut(&r.code) {
+            game.add_player(Player::new(
+                r.name.to_string(),
+                Location::new(r.latitude, r.longitude),
+                0, // hidden
+                0, // hider
+            ));
             Ok(Response::new(ConnectionResponse {
                 success: true,
             }))
@@ -101,8 +100,10 @@ impl MonsoonService for Monsoon {
         println!("_start");
         // todo: hi
         let mut map = GAMES.write().unwrap();
-        if let Some(game) = map.get_mut(&request.into_inner().code) {
+        let r = &request.into_inner();
+        if let Some(game) = map.get_mut(&r.code) {
             game.start();
+            Game::tick(&r.code);
             Ok(Response::new(StartResponse {
                 success: true,
             }))
@@ -116,7 +117,11 @@ impl MonsoonService for Monsoon {
     async fn heartbeat(&self, request:Request<Heartbeat>) -> Result<Response<Storm>, Status> {
         println!("_heartbeat");
         let mut map = GAMES.write().unwrap();
-        if let Some(game) = map.get_mut(&request.into_inner().code) {
+        let r = &request.into_inner();
+        if let Some(game) = map.get_mut(&r.code.to_string()) {
+            if let Some(player) = game.get_player(&r.name.to_string()) {
+                player.update(r.latitude, r.longitude)
+            }
             Ok(Response::new(Storm {
                 state: game.phase as i32,
                 size: game.size,

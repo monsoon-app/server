@@ -11,5 +11,9 @@ impl Player {
     pub fn new(name: String, location: Location, state: i32, gamemode: i32) -> Player {
         Player { name, location, state, gamemode }
     }
+    pub fn update(&mut self, latitude: f32, longitude: f32) {
+        self.location.update(latitude, longitude)
+        // todo: check in relation to the storm
+    }
 }
 
